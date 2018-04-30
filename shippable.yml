@@ -14,7 +14,7 @@ env:
   global:
     - TEST_RESULTS_DIR=./shippable/testresults
     - CODE_COVERAGE_DIR=./shippable/codecoverage
-    - TESTS_LOC_DIR=$./tests
+    - TESTS_LOC_DIR=./tests
     - MOD_LOC=./node_modules/.bin/
     - DOCKER_IMG="git_pr_flow_app"
     - DOCKER_REPO=devopsrecipes # {account name}
@@ -43,9 +43,11 @@ build:
           shipctl replace appDeploy.yml appSvc.yml;
           cat appDeploy.yml;
         fi
-#          export CLUST=$(shipctl get_resource_version_key gke_cluster sourceName)
-#          export CLUST_REG=$(shipctl get_resource_version_key gke_cluster region)
-#          gcloud container clusters get-credentials $CLUST --zone $CLUST_REG
+#    - echo $(shipctl get_integration_resource_field git_pr_gke_cluster JSON_key) > key.json
+#    - gcloud -q auth activate-service-account --key-file key.json
+#    - CLUST=$(shipctl get_resource_version_key git_pr_gke_cluster sourceName)
+#    - export CLUST_REG=$(shipctl get_resource_version_key git_pr_gke_cluster region)
+#    - gcloud container clusters get-credentials $CLUST --zone $CLUST_REG
 #          kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
 #          kubectl delete -f ./appSvc.yml  2>/dev/null || echo ""
 #          kubectl create -o json -f ./appDeploy.yml >> kube_output.json
@@ -65,12 +67,21 @@ build:
 #      isPull: false
 #      versionName: latest
 #
+# GKE cluster info
+#  - name: git_pr_gke_cluster
+#    type: cluster
+#    integration: "drship_gcp"
+#    pointer:
+#      sourceName: "cluster"
+#      region: "us-west1-a"
+#
 #jobs:
-#  - name: node_app_runCI
+#  - name: git_pr_flow_runCI
 #    type: runCI
 #    dependencyMode: strict
 #    triggerMode: parallel
 #    steps:
-#      - OUT: node_app_img_dh
+#      - IN: git_pr_gke_cluster
+##      - OUT: node_app_img_dh
 #    flags:
-#      - node_app
+#      - git_pr
