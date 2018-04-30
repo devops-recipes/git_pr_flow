@@ -31,9 +31,9 @@ build:
     - APP_IMG=$DOCKER_REPO/$DOCKER_IMG
     - |
         if [ "$IS_PULL_REQUEST" != true ]; then
-          APP_TAG="pr."$PULL_REQUEST
+          APP_TAG="pr."$PULL_REQUEST;
         else
-          APP_TAGTAG=$BRANCH.$BUILD_NUMBER
+          APP_TAGTAG=$BRANCH.$BUILD_NUMBER;
         fi
     - docker build -t $APP_IMG:$APP_TAG .
     - docker push $APP_IMG:$APP_TAG
@@ -42,6 +42,7 @@ build:
           cd specs;
           shipctl replace appDeploy.yml appSvc.yml;
           cat appDeploy.yml;
+        fi
 #          export CLUST=$(shipctl get_resource_version_key gke_cluster sourceName)
 #          export CLUST_REG=$(shipctl get_resource_version_key gke_cluster region)
 #          gcloud container clusters get-credentials $CLUST --zone $CLUST_REG
@@ -49,7 +50,7 @@ build:
 #          kubectl delete -f ./appSvc.yml  2>/dev/null || echo ""
 #          kubectl create -o json -f ./appDeploy.yml >> kube_output.json
 #          kubectl create -o json -f ./appSvc.yml >> kube_output.json
-        fi
+
 
 #  on_success:
 #    - shipctl put_resource_state $SHIP_IMG_RES versionName $BRANCH.$BUILD_NUMBER
