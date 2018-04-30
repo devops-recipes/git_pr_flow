@@ -26,12 +26,12 @@ build:
     - export DH_USR_NAME=$(shipctl get_integration_resource_field git_pr_dh "userName")
     - export DH_PASS=$(shipctl get_integration_resource_field git_pr_dh "password")
     - sudo docker login -u $DH_USR_NAME -p $DH_PASS
-    - APP_IMG=$DOCKER_REPO/$DOCKER_IMG
+    - export APP_IMG=$DOCKER_REPO/$DOCKER_IMG
     - |
         if [ "$IS_PULL_REQUEST" == true ]; then
-          APP_TAG="pr."$PULL_REQUEST;
+          export APP_TAG="pr."$PULL_REQUEST;
         else
-          APP_TAG=$BRANCH.$BUILD_NUMBER;
+          export APP_TAG=$BRANCH.$BUILD_NUMBER;
         fi
     - sudo docker build -t $APP_IMG:$APP_TAG .
     - sudo docker push $APP_IMG:$APP_TAG
