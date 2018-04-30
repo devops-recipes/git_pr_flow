@@ -23,9 +23,9 @@ build:
     - $MOD_LOC/istanbul report cobertura --dir $CODE_COVERAGE_DIR
 
   post_ci:
-#    - export DH_USR_NAME=$(shipctl get_integration_resource_field git_pr_dh "userName")
-#    - export DH_PASS=$(shipctl get_integration_resource_field git_pr_dh "password")
-#    - sudo docker login -u $DH_USR_NAME -p $DH_PASS
+    - export DH_USR_NAME=$(shipctl get_integration_resource_field git_pr_dh "userName")
+    - export DH_PASS=$(shipctl get_integration_resource_field git_pr_dh "password")
+    - sudo docker login -u $DH_USR_NAME -p $DH_PASS
     - export APP_IMG=$DOCKER_REPO/$DOCKER_IMG
     - |
         if [ "$IS_PULL_REQUEST" == true ]; then
@@ -67,12 +67,12 @@ resources:
 #      versionName: latest
 
 # GKE cluster info
-  - name: git_pr_gcp_c
-    type: cliConfig
+  - name: git_pr_gcp
+    type: integration
     integration: "drship_gcp"
 
-  - name: git_pr_dh_c
-    type: cliConfig
+  - name: git_pr_dh
+    type: integration
     integration: drship_dockerhub # replace with your integration name
 
 jobs:
@@ -81,8 +81,8 @@ jobs:
     dependencyMode: strict
     triggerMode: parallel
     steps:
-      - IN: git_pr_gcp_c
-      - IN: git_pr_dh_c
+      - IN: git_pr_gcp
+      - IN: git_pr_dh
 #      - OUT: node_app_img_dh
     flags:
       - git_pr
