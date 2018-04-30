@@ -103,7 +103,7 @@ jobs:
             options:
               env:
                 - APP_LABEL: "git-pr-app"
-                - APP_NAMESPACE: "pull_req"
+                - APP_NAMESPACE: "pullreq"
                 - CLUSTER: "cluster"
                 - REGION: "us-west1-a"
           script:
