@@ -41,7 +41,7 @@ build:
         if [ "$IS_PULL_REQUEST" != true ]; then
           cd specs;
           shipctl replace appDeploy.yml appSvc.yml;
-          cat appDeploy.yml
+          cat appDeploy.yml;
 #          export CLUST=$(shipctl get_resource_version_key gke_cluster sourceName)
 #          export CLUST_REG=$(shipctl get_resource_version_key gke_cluster region)
 #          gcloud container clusters get-credentials $CLUST --zone $CLUST_REG
