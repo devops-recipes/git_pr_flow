@@ -11,8 +11,6 @@ env:
     - CODE_COVERAGE_DIR=./shippable/codecoverage
     - TESTS_LOC_DIR=./tests
     - MOD_LOC=./node_modules/.bin/
-    - DOCKER_IMG="git_pr_flow_app"
-    - DOCKER_REPO=devopsrecipes # {account name}
 
 build:
   ci:
@@ -23,24 +21,31 @@ build:
     - $MOD_LOC/istanbul report cobertura --dir $CODE_COVERAGE_DIR
 
   post_ci:
-    - export DH_USR_NAME=$(shipctl get_integration_resource_field git_pr_dh "userName")
-    - export DH_PASS=$(shipctl get_integration_resource_field git_pr_dh "password")
-    - sudo docker login -u $DH_USR_NAME -p $DH_PASS
-    - export APP_IMG=$DOCKER_REPO/$DOCKER_IMG
+    - DH_USR_NAME=$(shipctl get_integration_resource_field git_pr_app_img_dh "userName")
+    - DH_PASS=$(shipctl get_integration_resource_field git_pr_app_img_dh "password")
+    - docker login -u $DH_USR_NAME -p $DH_PASS
+    - APP_IMG=$(shipctl get_resource_version_key git_pr_app_img_dh "sourceName")
+    - export
     - |
         if [ "$IS_PULL_REQUEST" == true ]; then
           export APP_TAG="pr."$PULL_REQUEST;
         else
           export APP_TAG=$BRANCH.$BUILD_NUMBER;
         fi
-    - sudo docker build -t $APP_IMG:$APP_TAG .
-    - sudo docker push $APP_IMG:$APP_TAG
+    - docker build -t $APP_IMG:$APP_TAG .
+    - docker push $APP_IMG:$APP_TAG
     - |
         if [ "$IS_PULL_REQUEST" == true ]; then
-          cd specs;
-          shipctl replace appDeploy.yml appSvc.yml;
-          cat appDeploy.yml;
+          shipctl put_resource_state_multi git_pr_img_preq "versionName=$APP_TAG buildNumber=$BUILD_NUMBER commitSha=$COMMIT prNumber=$PULL_REQUEST";
+        else
+          shipctl put_resource_state_multi "git_pr_img_"$BRANCH "versionName=$APP_TAG buildNumber=$BUILD_NUMBER commitSha=$COMMIT branch=$BRANCH";
         fi
+#    - |
+#        if [ "$IS_PULL_REQUEST" == true ]; then
+#          cd specs;
+#          shipctl replace appDeploy.yml appSvc.yml;
+#          cat appDeploy.yml;
+#        fi
 
 #    - echo $(shipctl get_integration_resource_field git_pr_gke_cluster JSON_key) > key.json
 #    - gcloud -q auth activate-service-account --key-file key.json
@@ -58,22 +63,31 @@ build:
 #
 ### OPTIONAL : In case you want to use this image in CD Assembly Lines
 resources:
-#  - name: node_app_img_dh
-#    type: image
-#    integration: drship_dockerhub # replace with your integration name
-#    versionTemplate:
-#      sourceName: "devopsrecipes/node_app" # replace with your Hub URL
-#      isPull: false
-#      versionName: latest
+  - name: git_pr_img_preq
+    type: image
+    integration: drship_dockerhub # replace with your integration name
+    versionTemplate:
+      sourceName: "devopsrecipes/git_pr_flow_app" # replace with your Hub URL
+      versionName: latest
+
+  - name: git_pr_img_master
+    type: image
+    integration: drship_dockerhub # replace with your integration name
+    versionTemplate:
+      sourceName: "devopsrecipes/git_pr_flow_app" # replace with your Hub URL
+      versionName: latest
+
+  - name: git_pr_img_stg
+    type: image
+    integration: drship_dockerhub # replace with your integration name
+    versionTemplate:
+      sourceName: "devopsrecipes/git_pr_flow_app" # replace with your Hub URL
+      versionName: latest
 
 # GKE cluster info
   - name: git_pr_gcp
     type: integration
     integration: "drship_gcp"
-
-  - name: git_pr_dh
-    type: integration
-    integration: drship_dockerhub # replace with your integration name
 
 jobs:
   - name: git_pr_flow_runCI
@@ -81,8 +95,8 @@ jobs:
     dependencyMode: strict
     triggerMode: parallel
     steps:
-      - IN: git_pr_gcp
-      - IN: git_pr_dh
-#      - OUT: node_app_img_dh
+      - OUT: git_pr_img_stg
+      - OUT: git_pr_img_master
+      - OUT: git_pr_img_preq
     flags:
       - git_pr
