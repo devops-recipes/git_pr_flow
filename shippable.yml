@@ -23,7 +23,7 @@ build:
   post_ci:
     - DH_USR_NAME=$(shipctl get_integration_resource_field git_pr_app_img_dh "userName")
     - DH_PASS=$(shipctl get_integration_resource_field git_pr_app_img_dh "password")
-    - docker login -u $DH_USR_NAME -p $DH_PASS
+    - sudo docker login -u $DH_USR_NAME -p $DH_PASS
     - APP_IMG=$(shipctl get_resource_version_key git_pr_app_img_dh "sourceName")
     - export
     - |
