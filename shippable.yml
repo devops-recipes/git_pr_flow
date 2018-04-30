@@ -23,6 +23,9 @@ build:
     - $MOD_LOC/istanbul report cobertura --dir $CODE_COVERAGE_DIR
 
   post_ci:
+    - export DH_USR_NAME=$(shipctl get_integration_resource_field git_pr_dh "userName")
+    - export DH_PASS=$(shipctl get_integration_resource_field git_pr_dh "password")
+    - sudo docker login -u $DH_USR_NAME -p $DH_PASS
     - APP_IMG=$DOCKER_REPO/$DOCKER_IMG
     - |
         if [ "$IS_PULL_REQUEST" == true ]; then
