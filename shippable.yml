@@ -33,6 +33,7 @@ build:
           export APP_TAG=$BRANCH.$BUILD_NUMBER;
         fi
     - docker build -t $APP_IMG:$APP_TAG .
+  on_success:
     - docker push $APP_IMG:$APP_TAG
     - |
         if [ "$IS_PULL_REQUEST" == true ]; then
@@ -40,52 +41,38 @@ build:
         else
           shipctl put_resource_state_multi "git_pr_img_"$BRANCH "versionName=$APP_TAG buildNumber=$BUILD_NUMBER commitSha=$COMMIT branch=$BRANCH";
         fi
-#    - |
-#        if [ "$IS_PULL_REQUEST" == true ]; then
-#          cd specs;
-#          shipctl replace appDeploy.yml appSvc.yml;
-#          cat appDeploy.yml;
-#        fi
-
-#    - echo $(shipctl get_integration_resource_field git_pr_gke_cluster JSON_key) > key.json
-#    - gcloud -q auth activate-service-account --key-file key.json
-#    - CLUST=$(shipctl get_resource_version_key git_pr_gke_cluster sourceName)
-#    - export CLUST_REG=$(shipctl get_resource_version_key git_pr_gke_cluster region)
-#    - gcloud container clusters get-credentials $CLUST --zone $CLUST_REG
-#          kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
-#          kubectl delete -f ./appSvc.yml  2>/dev/null || echo ""
-#          kubectl create -o json -f ./appDeploy.yml >> kube_output.json
-#          kubectl create -o json -f ./appSvc.yml >> kube_output.json
 
 
-#  on_success:
-#    - shipctl put_resource_state $SHIP_IMG_RES versionName $BRANCH.$BUILD_NUMBER
-#
-### OPTIONAL : In case you want to use this image in CD Assembly Lines
 resources:
+  - name: git_pr_cfg_repo
+    type: gitRepo
+    integration: "drship_github"
+    versionTemplate:
+      sourceName: "devops-recipes/git_pr_flow"
+      branch: master
+
   - name: git_pr_img_preq
     type: image
-    integration: drship_dockerhub # replace with your integration name
+    integration: drship_dockerhub
     versionTemplate:
-      sourceName: "devopsrecipes/git_pr_flow_app" # replace with your Hub URL
+      sourceName: "devopsrecipes/git_pr_flow_app"
       versionName: latest
 
   - name: git_pr_img_master
     type: image
-    integration: drship_dockerhub # replace with your integration name
+    integration: drship_dockerhub
     versionTemplate:
-      sourceName: "devopsrecipes/git_pr_flow_app" # replace with your Hub URL
+      sourceName: "devopsrecipes/git_pr_flow_app"
       versionName: latest
 
   - name: git_pr_img_stg
     type: image
-    integration: drship_dockerhub # replace with your integration name
+    integration: drship_dockerhub
     versionTemplate:
-      sourceName: "devopsrecipes/git_pr_flow_app" # replace with your Hub URL
+      sourceName: "devopsrecipes/git_pr_flow_app"
       versionName: latest
 
-# GKE cluster info
-  - name: git_pr_gcp_c
+  - name: git_pr_gcp
     type: cliConfig
     integration: "drship_gcp"
 
@@ -99,4 +86,110 @@ jobs:
       - OUT: git_pr_img_master
       - OUT: git_pr_img_preq
     flags:
+      - git_pr
+      - ci
+
+  - name: deploy_git_pr_preq
+    type: runSh
+    steps:
+      - IN: git_pr_img_preq
+      - IN: git_pr_gcp
+        switch: off
+      - IN: git_pr_cfg_repo
+        switch: off
+      - TASK:
+          name: deploy_pReqs
+          runtime:
+            options:
+              env:
+                - APP_LABEL: "git-pr-app"
+                - APP_NAMESPACE: "pull_req"
+                - CLUSTER: "cluster"
+                - REGION: "us-west1-a"
+          script:
+            - pushd $(shipctl get_resource_state "git_pr_cfg_repo")/specs
+            - export APP_IMG=$(shipctl get_resource_version_key git_pr_img_preq sourceName)
+            - export APP_TAG=$(shipctl get_resource_version_key git_pr_img_preq versionName)
+            - shipctl replace appDeploy.yml appSvc.yml
+            - gcloud container clusters get-credentials $CLUSTER --zone $REGION
+            - kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
+            - kubectl delete -f ./appSvc.yml  2>/dev/null || echo ""
+            - kubectl create -o json -f ./appDeploy.yml >> kube_output.json
+            - kubectl create -o json -f ./appSvc.yml >> kube_output.json
+    always:
+      script:
+        - kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
+        - kubectl delete -f ./appSvc.yml  2>/dev/null || echo ""
+    flags:
+      - gke
+      - cd
+      - kctl
+      - git_pr
+
+  - name: deploy_git_pr_stg
+    type: runSh
+    steps:
+      - IN: git_pr_img_stg
+      - IN: git_pr_gcp
+        switch: off
+      - IN: git_pr_cfg_repo
+        switch: off
+      - TASK:
+          name: deploy_pReqs
+          runtime:
+            options:
+              env:
+                - APP_LABEL: "git-pr-app"
+                - APP_NAMESPACE: "stg"
+                - CLUSTER: "cluster"
+                - REGION: "us-west1-a"
+          script:
+            - pushd $(shipctl get_resource_state "git_pr_cfg_repo")/specs
+            - export APP_IMG=$(shipctl get_resource_version_key git_pr_img_stg sourceName)
+            - export APP_TAG=$(shipctl get_resource_version_key git_pr_img_stg versionName)
+            - shipctl replace appDeploy.yml appSvc.yml
+            - gcloud container clusters get-credentials $CLUSTER --zone $REGION
+            - kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
+            - kubectl delete -f ./appSvc.yml  2>/dev/null || echo ""
+            - kubectl create -o json -f ./appDeploy.yml >> kube_output.json
+            - kubectl create -o json -f ./appSvc.yml >> kube_output.json
+            - popd
+    flags:
+      - gke
+      - cd
+      - kctl
+      - git_pr
+
+  - name: deploy_git_pr_master
+    type: runSh
+    steps:
+      - IN: git_pr_img_master
+      - IN: git_pr_gcp
+        switch: off
+      - IN: git_pr_cfg_repo
+        switch: off
+      - TASK:
+          name: deploy_pReqs
+          runtime:
+            options:
+              env:
+                - APP_LABEL: "git-pr-app"
+                - APP_NAMESPACE: "master"
+                - CLUSTER: "cluster"
+                - REGION: "us-west1-a"
+          script:
+            - pushd $(shipctl get_resource_state "git_pr_cfg_repo")/specs
+            - export APP_IMG=$(shipctl get_resource_version_key git_pr_img_master sourceName)
+            - export APP_TAG=$(shipctl get_resource_version_key git_pr_img_master versionName)
+            - shipctl replace appDeploy.yml appSvc.yml
+            - gcloud container clusters get-credentials $CLUSTER --zone $REGION
+            - kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
+            - kubectl delete -f ./appSvc.yml  2>/dev/null || echo ""
+            - kubectl create -o json -f ./appDeploy.yml >> kube_output.json
+            - kubectl create -o json -f ./appSvc.yml >> kube_output.json
+            - popd
+    flags:
+      - gke
+      - cd
+      - kctl
       - git_pr

@@ -1,7 +1,7 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  namespace: default
+  namespace: ${APP_NAMESPACE}
   name: ${APP_LABEL}
 spec:
   replicas: 1
