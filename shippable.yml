@@ -85,8 +85,8 @@ resources:
       versionName: latest
 
 # GKE cluster info
-  - name: git_pr_gcp
-    type: integration
+  - name: git_pr_gcp_c
+    type: cliConfig
     integration: "drship_gcp"
 
 jobs:
