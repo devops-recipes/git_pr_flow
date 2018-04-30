@@ -28,21 +28,22 @@ build:
     - $MOD_LOC/istanbul report cobertura --dir $CODE_COVERAGE_DIR
 
   post_ci:
-    - export APP_IMG=$DOCKER_REPO/$DOCKER_IMG
+    - APP_IMG=$DOCKER_REPO/$DOCKER_IMG
     - |
-        if [ "$IS_PULL_REQUEST" != true ]; then
-          export APP_TAG="pr."$PULL_REQUEST;
+        if [ "$IS_PULL_REQUEST" == true ]; then
+          APP_TAG="pr."$PULL_REQUEST;
         else
-          export APP_TAGTAG=$BRANCH.$BUILD_NUMBER;
+          APP_TAG=$BRANCH.$BUILD_NUMBER;
         fi
-    - docker build -t $APP_IMG:$APP_TAG .
-    - docker push $APP_IMG:$APP_TAG
+    - sudo docker build -t $APP_IMG:$APP_TAG .
+    - sudo docker push $APP_IMG:$APP_TAG
     - |
-        if [ "$IS_PULL_REQUEST" != true ]; then
+        if [ "$IS_PULL_REQUEST" == true ]; then
           cd specs;
           shipctl replace appDeploy.yml appSvc.yml;
           cat appDeploy.yml;
         fi
+
 #    - echo $(shipctl get_integration_resource_field git_pr_gke_cluster JSON_key) > key.json
 #    - gcloud -q auth activate-service-account --key-file key.json
 #    - CLUST=$(shipctl get_resource_version_key git_pr_gke_cluster sourceName)
