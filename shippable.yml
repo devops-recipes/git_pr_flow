@@ -43,6 +43,7 @@ build:
           shipctl replace appDeploy.yml appSvc.yml;
           cat appDeploy.yml;
         fi
+
 #    - echo $(shipctl get_integration_resource_field git_pr_gke_cluster JSON_key) > key.json
 #    - gcloud -q auth activate-service-account --key-file key.json
 #    - CLUST=$(shipctl get_resource_version_key git_pr_gke_cluster sourceName)
