@@ -35,10 +35,8 @@ build:
         else
           APP_TAG=$BRANCH.$BUILD_NUMBER;
         fi
-    - echo $APP_IMG:$APP_TAG
-    - docker build -t $APP_IMG:$APP_TAG .
-    - docker images
-    - docker push $APP_IMG:$APP_TAG
+    - sudo docker build -t $APP_IMG:$APP_TAG .
+    - sudo docker push $APP_IMG:$APP_TAG
     - |
         if [ "$IS_PULL_REQUEST" == true ]; then
           cd specs;
