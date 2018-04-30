@@ -28,12 +28,12 @@ build:
     - $MOD_LOC/istanbul report cobertura --dir $CODE_COVERAGE_DIR
 
   post_ci:
-    - APP_IMG=$DOCKER_REPO/$DOCKER_IMG
+    - export APP_IMG=$DOCKER_REPO/$DOCKER_IMG
     - |
         if [ "$IS_PULL_REQUEST" != true ]; then
-          APP_TAG="pr."$PULL_REQUEST;
+          export APP_TAG="pr."$PULL_REQUEST;
         else
-          APP_TAGTAG=$BRANCH.$BUILD_NUMBER;
+          export APP_TAGTAG=$BRANCH.$BUILD_NUMBER;
         fi
     - docker build -t $APP_IMG:$APP_TAG .
     - docker push $APP_IMG:$APP_TAG
