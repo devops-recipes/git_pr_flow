@@ -116,6 +116,9 @@ jobs:
             - kubectl delete -f ./appSvc.yml  2>/dev/null || echo ""
             - kubectl create -o json -f ./appDeploy.yml >> kube_output.json
             - kubectl create -o json -f ./appSvc.yml >> kube_output.json
+    on_success:
+      script:
+        - shipctl put_resource_state $JOB_NAME versionName $APP_TAG
     always:
       script:
         - kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
@@ -154,6 +157,9 @@ jobs:
             - kubectl create -o json -f ./appDeploy.yml >> kube_output.json
             - kubectl create -o json -f ./appSvc.yml >> kube_output.json
             - popd
+    on_success:
+      script:
+        - shipctl put_resource_state $JOB_NAME versionName $APP_TAG
     flags:
       - gke
       - cd
@@ -188,6 +194,9 @@ jobs:
             - kubectl create -o json -f ./appDeploy.yml >> kube_output.json
             - kubectl create -o json -f ./appSvc.yml >> kube_output.json
             - popd
+    on_success:
+      script:
+        - shipctl put_resource_state $JOB_NAME versionName $APP_TAG
     flags:
       - gke
       - cd
