@@ -65,7 +65,7 @@ resources:
 
 # GKE cluster info
   - name: git_pr_gcp
-    type: cluster
+    type: integration
     integration: "drship_gcp"
 
   - name: git_pr_dh
