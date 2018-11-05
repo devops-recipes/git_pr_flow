@@ -1,4 +1,29 @@
+get_img_temp: &get_img
+  - |
+      export APP_IMG=$(shipctl get_resource_version_key $INPUT_IMG_INFO sourceName)
+      export APP_TAG=$(shipctl get_resource_version_key $INPUT_IMG_INFO versionName)
+
+get_cluster_temp: &get_cluster
+  - |
+      export CLUSTER_NAME=$(shipctl get_resource_version_key $TARGET_CLUSTER_INFO sourceName)
+      export CLUSTER_REGION=$(shipctl get_resource_version_key $TARGET_CLUSTER_INFO region)
+      gcloud container clusters get-credentials $CLUSTER_NAME --zone $CLUSTER_REGION
+
+deploy_temp: &deploy
+  - |
+      shipctl replace appDeploy.yml appSvc.yml
+      kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
+      kubectl delete -f ./appSvc.yml  2>/dev/null || echo ""
+      kubectl create -o json -f ./appDeploy.yml >> kube_output.json
+      kubectl create -o json -f ./appSvc.yml >> kube_output.json
+      cat kube_output.json
+
 language: node_js
+
+integrations:
+  hub:
+    - integrationName: docker_repo
+      type: dockerRegistryLogin
 
 branches:
   only:
@@ -21,10 +46,7 @@ build:
     - $MOD_LOC/istanbul report cobertura --dir $CODE_COVERAGE_DIR
 
   post_ci:
-    - DH_USR_NAME=$(shipctl get_integration_resource_field git_pr_img_preq "userName")
-    - DH_PASS=$(shipctl get_integration_resource_field git_pr_img_preq "password")
-    - docker login -u $DH_USR_NAME -p $DH_PASS
-    - APP_IMG=$(shipctl get_resource_version_key git_pr_img_preq "sourceName")
+    - APP_IMG=$(shipctl get_resource_version_key git_flow_img_preq "sourceName")
     - export
     - |
         if [ "$IS_PULL_REQUEST" == true ]; then
@@ -37,79 +59,80 @@ build:
     - docker push $APP_IMG:$APP_TAG
     - |
         if [ "$IS_PULL_REQUEST" == true ]; then
-          shipctl put_resource_state_multi git_pr_img_preq "versionName=$APP_TAG buildNumber=$BUILD_NUMBER commitSha=$COMMIT prNumber=$PULL_REQUEST";
+          shipctl put_resource_state_multi git_flow_img_preq "versionName=$APP_TAG buildNumber=$BUILD_NUMBER commitSha=$COMMIT prNumber=$PULL_REQUEST";
         else
-          shipctl put_resource_state_multi "git_pr_img_"$BRANCH "versionName=$APP_TAG buildNumber=$BUILD_NUMBER commitSha=$COMMIT branch=$BRANCH";
+          shipctl put_resource_state_multi "git_flow_img_"$BRANCH "versionName=$APP_TAG buildNumber=$BUILD_NUMBER commitSha=$COMMIT branch=$BRANCH";
         fi
 
-
 resources:
-  - name: git_pr_cfg_repo
+  - name: git_flow_cfg_repo
     type: gitRepo
-    integration: "drship_github"
+    integration: "dr_gh"
     versionTemplate:
       sourceName: "devops-recipes/git_pr_flow"
       branch: master
 
-  - name: git_pr_img_preq
+  - name: git_flow_img_preq
     type: image
-    integration: drship_dockerhub
+    integration: docker_repo
     versionTemplate:
-      sourceName: "devopsrecipes/git_pr_flow_app"
+      sourceName: "hendrix-docker-local.jfrog.io/git_flow_app"
       versionName: latest
 
-  - name: git_pr_img_master
+  - name: git_flow_img_master
     type: image
-    integration: drship_dockerhub
+    integration: docker_repo
     versionTemplate:
-      sourceName: "devopsrecipes/git_pr_flow_app"
+      sourceName: "hendrix-docker-local.jfrog.io/git_flow_app"
       versionName: latest
 
-  - name: git_pr_img_stg
+  - name: git_flow_img_stg
     type: image
-    integration: drship_dockerhub
+    integration: docker_repo
     versionTemplate:
-      sourceName: "devopsrecipes/git_pr_flow_app"
+      sourceName: "hendrix-docker-local.jfrog.io/git_flow_app"
       versionName: latest
 
-  - name: git_pr_gcp
+  - name: git_flow_gcp_creds
     type: cliConfig
-    integration: "drship_gcp"
+    integration: "dr_gcp"
 
 jobs:
-  - name: git_pr_flow_runCI
+  - name: git_flow_flow_runCI
     type: runCI
     dependencyMode: strict
     triggerMode: parallel
     steps:
-      - OUT: git_pr_img_stg
-      - OUT: git_pr_img_master
-      - OUT: git_pr_img_preq
+      - OUT: git_flow_img_stg
+      - OUT: git_flow_img_master
+      - OUT: git_flow_img_preq
     flags:
-      - git_pr
+      - git_flow
       - ci
 
-  - name: deploy_git_pr_preq
+  - name: deploy_git_flow_preq
     type: runSh
     steps:
-      - IN: git_pr_img_preq
-      - IN: git_pr_gcp
+      - IN: git_flow_img_preq
+      - IN: git_flow_gcp_creds
         switch: off
-      - IN: git_pr_cfg_repo
+      - IN: git_flow_cfg_repo
+        switch: off
+      - IN: gcp_gke_cluster
         switch: off
       - TASK:
           name: deploy_pReqs
           runtime:
             options:
               env:
-                - APP_LABEL: "git-pr-app"
-                - APP_NAMESPACE: "pullreq"
-                - CLUSTER: "cluster"
-                - REGION: "us-west1-a"
+                - APP_LABEL: "git-flow-app"
+                - APP_NAMESPACE: "test"
+                - INPUT_IMG_INFO: "git_flow_img_preq"
+                - TARGET_CLUSTER_INFO: "gcp_gke_cluster"
           script:
-            - pushd $(shipctl get_resource_state "git_pr_cfg_repo")/specs
-            - export APP_IMG=$(shipctl get_resource_version_key git_pr_img_preq sourceName)
-            - export APP_TAG=$(shipctl get_resource_version_key git_pr_img_preq versionName)
+            - pushd $(shipctl get_resource_state "git_flow_cfg_repo")/specs
+            - export APP_IMG=$(shipctl get_resource_version_key git_flow_img_preq sourceName)
+            - export APP_TAG=$(shipctl get_resource_version_key git_flow_img_preq versionName)
             - shipctl replace appDeploy.yml appSvc.yml
             - gcloud container clusters get-credentials $CLUSTER --zone $REGION
             - kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
@@ -127,29 +150,31 @@ jobs:
       - gke
       - cd
       - kctl
-      - git_pr
+      - git_flow
 
-  - name: deploy_git_pr_stg
+  - name: deploy_git_flow_stg
     type: runSh
     steps:
-      - IN: git_pr_img_stg
-      - IN: git_pr_gcp
+      - IN: git_flow_img_stg
+      - IN: git_flow_gcp_creds
         switch: off
-      - IN: git_pr_cfg_repo
+      - IN: git_flow_cfg_repo
+        switch: off
+      - IN: gcp_gke_cluster
         switch: off
       - TASK:
           name: deploy_pReqs
           runtime:
             options:
               env:
-                - APP_LABEL: "git-pr-app"
+                - APP_LABEL: "git-flow-app"
                 - APP_NAMESPACE: "stg"
-                - CLUSTER: "cluster"
-                - REGION: "us-west1-a"
+                - INPUT_IMG_INFO: "git_flow_img_stg"
+                - TARGET_CLUSTER_INFO: "gcp_gke_cluster"
           script:
-            - pushd $(shipctl get_resource_state "git_pr_cfg_repo")/specs
-            - export APP_IMG=$(shipctl get_resource_version_key git_pr_img_stg sourceName)
-            - export APP_TAG=$(shipctl get_resource_version_key git_pr_img_stg versionName)
+            - pushd $(shipctl get_resource_state "git_flow_cfg_repo")/specs
+            - export APP_IMG=$(shipctl get_resource_version_key git_flow_img_stg sourceName)
+            - export APP_TAG=$(shipctl get_resource_version_key git_flow_img_stg versionName)
             - shipctl replace appDeploy.yml appSvc.yml
             - gcloud container clusters get-credentials $CLUSTER --zone $REGION
             - kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
@@ -164,29 +189,31 @@ jobs:
       - gke
       - cd
       - kctl
-      - git_pr
+      - git_flow
 
-  - name: deploy_git_pr_master
+  - name: deploy_git_flow_master
     type: runSh
     steps:
-      - IN: git_pr_img_master
-      - IN: git_pr_gcp
+      - IN: git_flow_img_master
+      - IN: git_flow_gcp_creds
         switch: off
-      - IN: git_pr_cfg_repo
+      - IN: git_flow_cfg_repo
+        switch: off
+      - IN: gcp_gke_cluster
         switch: off
       - TASK:
           name: deploy_pReqs
           runtime:
             options:
               env:
-                - APP_LABEL: "git-pr-app"
-                - APP_NAMESPACE: "master"
-                - CLUSTER: "cluster"
-                - REGION: "us-west1-a"
+                - APP_LABEL: "git-flow-app"
+                - APP_NAMESPACE: "prod"
+                - INPUT_IMG_INFO: "git_flow_img_master"
+                - TARGET_CLUSTER_INFO: "gcp_gke_cluster"
           script:
-            - pushd $(shipctl get_resource_state "git_pr_cfg_repo")/specs
-            - export APP_IMG=$(shipctl get_resource_version_key git_pr_img_master sourceName)
-            - export APP_TAG=$(shipctl get_resource_version_key git_pr_img_master versionName)
+            - pushd $(shipctl get_resource_state "git_flow_cfg_repo")/specs
+            - export APP_IMG=$(shipctl get_resource_version_key git_flow_img_master sourceName)
+            - export APP_TAG=$(shipctl get_resource_version_key git_flow_img_master versionName)
             - shipctl replace appDeploy.yml appSvc.yml
             - gcloud container clusters get-credentials $CLUSTER --zone $REGION
             - kubectl delete  -f ./appDeploy.yml 2>/dev/null || echo ""
@@ -201,4 +228,4 @@ jobs:
       - gke
       - cd
       - kctl
-      - git_pr
+      - git_flow
