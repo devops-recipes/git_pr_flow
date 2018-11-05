@@ -98,7 +98,7 @@ resources:
     integration: "dr_gcp"
 
 jobs:
-  - name: git_flow_flow_runCI
+  - name: git_pr_flow_runCI
     type: runCI
     dependencyMode: strict
     triggerMode: parallel
